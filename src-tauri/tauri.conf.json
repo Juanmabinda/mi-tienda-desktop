@@ -1,0 +1,74 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Mi Tienda POS",
+  "version": "0.1.0",
+  "identifier": "com.mitiendapos.desktop",
+  "build": {
+    "frontendDist": "../src"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "Mi Tienda POS",
+        "url": "https://mitiendapos.com.ar",
+        "userAgent": "Mozilla/5.0 (MiTiendaPOS-Desktop/0.1.0) Tauri/2",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 900,
+        "minHeight": 600,
+        "maximized": true,
+        "resizable": true,
+        "fullscreen": false,
+        "decorations": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "createUpdaterArtifacts": true,
+    "externalBin": [
+      "binaries/mi-tienda-print"
+    ],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "macOS": {
+      "entitlements": "macos/entitlements.plist",
+      "minimumSystemVersion": "11.0",
+      "dmg": {
+        "background": "macos/dmg-background.png",
+        "windowSize": { "width": 540, "height": 380 },
+        "appPosition": { "x": 130, "y": 200 },
+        "applicationFolderPosition": { "x": 410, "y": 200 }
+      }
+    },
+    "windows": {
+      "webviewInstallMode": {
+        "type": "offlineInstaller"
+      },
+      "nsis": {
+        "installerHooks": "windows/installer-hooks.nsi",
+        "languages": ["Spanish"],
+        "displayLanguageSelector": false
+      }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://mitiendapos.com.ar/desktop/manifest.json"
+      ],
+      "pubkey": "REPLACE_WITH_PUBKEY_FROM_TAURI_SIGNER_GENERATE"
+    }
+  }
+}

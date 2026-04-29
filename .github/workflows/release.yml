@@ -1,0 +1,165 @@
+name: Release
+
+# Buildea + firma + publica el wrapper desktop al pushear un tag v*.*.*
+# Por target hace:
+#   1. Checkout del agent repo (Juanmabinda/mi-tienda-agente) y compila el
+#      binario Go con CGO en cada plataforma — clave para drivers USB/fiscal.
+#   2. Drop binario en src-tauri/binaries/ con naming target-triple.
+#   3. tauri-action buildea, firma con TAURI_SIGNING_PRIVATE_KEY, y sube
+#      .app/.dmg/.msi + .sig + latest.json a un Release draft.
+#
+# Para lanzar versión: pushear tag (`git tag v0.1.1 && git push origin v0.1.1`)
+# y publicar el Release draft. Los clientes ya instalados se actualizan solos
+# en el próximo boot vía el endpoint /desktop/manifest.json del server.
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  # Re-disparar manualmente sin retagear (útil cuando se cargan
+  # Apple/SignPath secrets después del primer tag).
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag a buildear (ej: v0.1.0)'
+        required: true
+        type: string
+
+jobs:
+  publish:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest
+            target: aarch64-apple-darwin
+            agent_binary_suffix: ''
+          - platform: windows-latest
+            target: x86_64-pc-windows-msvc
+            agent_binary_suffix: .exe
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout wrapper
+        uses: actions/checkout@v4
+
+      - name: Checkout agent repo
+        uses: actions/checkout@v4
+        with:
+          repository: Juanmabinda/mi-tienda-agente
+          path: agent
+          token: ${{ secrets.AGENT_REPO_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache-dependency-path: agent/go.sum
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Build Go agent (CGO)
+        shell: bash
+        env:
+          CGO_ENABLED: '1'
+        working-directory: agent
+        run: |
+          mkdir -p ../src-tauri/binaries
+          go build -o ../src-tauri/binaries/mi-tienda-print-${{ matrix.target }}${{ matrix.agent_binary_suffix }} .
+          ls -la ../src-tauri/binaries/
+
+      - name: Install frontend deps
+        run: npm install
+
+      - name: Import Apple Developer cert (Mac)
+        if: matrix.platform == 'macos-latest'
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          # Si los secrets no están cargados, skipeamos sin error — el .app
+          # sale unsigned (Gatekeeper warning en el primer install).
+          if [[ -z "${APPLE_CERTIFICATE:-}" ]]; then
+            echo "::notice::APPLE_CERTIFICATE no cargado — build sin firmar (Gatekeeper warning)"
+            exit 0
+          fi
+          echo "$APPLE_CERTIFICATE" | base64 --decode > /tmp/cert.p12
+          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security import /tmp/cert.p12 -k build.keychain -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" build.keychain
+          rm /tmp/cert.p12
+
+      - name: Build + publish via tauri-action
+        id: tauri_build
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # Mac signing + notarization (cuando estos secrets estén cargados,
+          # tauri-action los usa automáticamente — el .app + .dmg salen
+          # firmados y notarizados, sin warning de Gatekeeper en el cliente).
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 'Mi Tienda POS ${{ github.ref_name }}'
+          releaseBody: |
+            Release ${{ github.ref_name }}.
+
+            Para usuarios existentes: el wrapper se actualiza solo en el próximo boot.
+            Para nuevas instalaciones: descargar abajo el .dmg (Mac) o .exe (Windows).
+          releaseDraft: true
+          prerelease: false
+          includeUpdaterJson: true
+          args: --target ${{ matrix.target }}
+
+      # Code signing del .exe/.msi de Windows via SignPath Foundation (gratis
+      # para OSS). Solo corre si los secrets están cargados — sin ellos el
+      # build sigue funcionando pero el cliente ve SmartScreen warning la
+      # primera vez. Setup: https://about.signpath.io/documentation/
+      - name: Detectar si SignPath secrets están cargados (Win)
+        if: matrix.platform == 'windows-latest'
+        id: check_signpath
+        shell: bash
+        env:
+          TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+        run: |
+          if [[ -n "${TOKEN:-}" ]]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::SIGNPATH_API_TOKEN no cargado — build sin firmar (SmartScreen warning)"
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Sign Windows binaries (SignPath)
+        if: matrix.platform == 'windows-latest' && steps.check_signpath.outputs.available == 'true'
+        uses: signpath/github-action-submit-signing-request@v1
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ secrets.SIGNPATH_ORG_ID }}
+          project-slug: ${{ secrets.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ secrets.SIGNPATH_POLICY_SLUG }}
+          artifact-configuration-slug: tauri-windows-installer
+          github-artifact-id: ${{ steps.tauri_build.outputs.releaseId }}
+          wait-for-completion: true

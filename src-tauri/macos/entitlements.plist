@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- USB / Bluetooth para que el sidecar Go pueda hablarle a las impresoras
+       térmicas (libusb / IOKit) y Bluetooth bajo App Sandbox. Sin estos
+       entitlements el .app firmado y notarizado falla silenciosamente al
+       intentar abrir el device. -->
+  <key>com.apple.security.device.usb</key>
+  <true/>
+  <key>com.apple.security.device.bluetooth</key>
+  <true/>
+
+  <!-- Networking necesario para el WebView (mitiendapos.com.ar), el sidecar
+       conectándose por LAN (impresoras ESC/POS, fiscales) y al server
+       (WebSocket / API). -->
+  <key>com.apple.security.network.client</key>
+  <true/>
+  <key>com.apple.security.network.server</key>
+  <true/>
+
+  <!-- El wrapper guarda agent_token en app_data_dir y necesita escribir.
+       También lectura del binario sidecar embebido. -->
+  <key>com.apple.security.files.user-selected.read-write</key>
+  <true/>
+
+  <!-- Tauri spawnea el sidecar Go como child process. -->
+  <key>com.apple.security.inherit</key>
+  <true/>
+</dict>
+</plist>

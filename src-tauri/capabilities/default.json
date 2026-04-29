@@ -1,0 +1,15 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Permisos mínimos. Solo nuestros comandos custom (pair_agent, agent_paired, agent_unpair, save_file_bytes, kiosk_mode_enabled, set_kiosk_mode) son invocables desde mitiendapos.com.ar. NO se expone shell ni fs a JS.",
+  "windows": ["main"],
+  "remote": {
+    "urls": [
+      "https://mitiendapos.com.ar",
+      "https://mitiendapos.com.ar/*"
+    ]
+  },
+  "permissions": [
+    "core:default"
+  ]
+}
