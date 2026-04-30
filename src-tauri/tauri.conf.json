@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Mi Tienda POS",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "identifier": "com.mitiendapos.desktop",
   "build": {
     "frontendDist": "../src"
@@ -12,7 +12,7 @@
       {
         "label": "main",
         "title": "Mi Tienda POS",
-        "url": "https://mitiendapos.com.ar",
+        "url": "https://mitiendapos.com.ar/dashboard",
         "userAgent": "Mozilla/5.0 (MiTiendaPOS-Desktop/0.1.0) Tauri/2",
         "width": 1280,
         "height": 800,
