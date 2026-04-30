@@ -47,9 +47,18 @@
       "minimumSystemVersion": "11.0",
       "dmg": {
         "background": "macos/dmg-background.png",
-        "windowSize": { "width": 540, "height": 380 },
-        "appPosition": { "x": 130, "y": 200 },
-        "applicationFolderPosition": { "x": 410, "y": 200 }
+        "windowSize": {
+          "width": 540,
+          "height": 380
+        },
+        "appPosition": {
+          "x": 130,
+          "y": 200
+        },
+        "applicationFolderPosition": {
+          "x": 410,
+          "y": 200
+        }
       }
     },
     "windows": {
@@ -58,7 +67,9 @@
       },
       "nsis": {
         "installerHooks": "windows/installer-hooks.nsi",
-        "languages": ["Spanish"],
+        "languages": [
+          "Spanish"
+        ],
         "displayLanguageSelector": false
       }
     }
@@ -68,7 +79,7 @@
       "endpoints": [
         "https://mitiendapos.com.ar/desktop/manifest.json"
       ],
-      "pubkey": "REPLACE_WITH_PUBKEY_FROM_TAURI_SIGNER_GENERATE"
+      "pubkey": "ZFc1MGNuVnpkR1ZrSUdOdmJXMWxiblE2SUcxcGJtbHphV2R1SUhCMVlteHBZeUJyWlhrNklEVkJNa1EzTkRFeU4wTXhOalF3TUVVS1VsZFJUMUZDV2poRmJsRjBWMjAwV1ZFdmQyMUNUMFoxWjNjNGVYUllSbkl2T1RCdlFWQnhVbGcxY2sxRmVsUlBNV3BMY1ZkaVJHSUs="
     }
   }
 }
