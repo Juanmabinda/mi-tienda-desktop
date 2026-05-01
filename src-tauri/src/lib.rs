@@ -85,6 +85,20 @@ fn apply_kiosk_mode_if_set(app: &AppHandle) {
     }
 }
 
+// Navega a /dashboard?v=<version> para esquivar cache CDN/CloudFlare cuando
+// se publica una nueva versión del wrapper o de los assets web. Sin esto, el
+// usuario podía ver UI vieja por hasta 1h tras un deploy.
+fn navigate_with_cache_buster(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let version = env!("CARGO_PKG_VERSION");
+        let url = format!("{SERVER_URL}/dashboard?v={version}");
+        match url.parse::<tauri::Url>() {
+            Ok(parsed) => { let _ = window.navigate(parsed); }
+            Err(e) => eprintln!("[wrapper] navigate parse failed: {e}"),
+        }
+    }
+}
+
 #[tauri::command]
 fn kiosk_mode_enabled(app: AppHandle) -> bool {
     read_kiosk_mode(&app)
@@ -266,6 +280,7 @@ pub fn run() {
         ])
         .setup(|app| {
             apply_kiosk_mode_if_set(app.handle());
+            navigate_with_cache_buster(app.handle());
             let _ = spawn_agent_if_token(app.handle());
             check_for_updates(app.handle().clone());
             Ok(())
