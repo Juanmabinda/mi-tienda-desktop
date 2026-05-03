@@ -91,6 +91,12 @@ fn apply_kiosk_mode_if_set(app: &AppHandle) {
 fn navigate_with_cache_buster(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         let version = env!("CARGO_PKG_VERSION");
+
+        // Inyectamos window.__DESKTOP_VERSION__ ANTES de la navegación para
+        // que el badge en el sidebar lo muestre apenas el HTML carga, sin
+        // esperar el round-trip IPC de app.getVersion().
+        let _ = window.eval(&format!("window.__DESKTOP_VERSION__ = '{version}';"));
+
         let url = format!("{SERVER_URL}/dashboard?v={version}");
         match url.parse::<tauri::Url>() {
             Ok(parsed) => { let _ = window.navigate(parsed); }
